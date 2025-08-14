@@ -14,7 +14,8 @@ typedef struct {
 } Timer;
 
 // Initialize the timer
-void timer_init(Timer *t);
+Timer timer_init(void);
+uint timer_elapsed_seconds(Timer *t);
 void timer_start(Timer *t);
 void timer_stop(Timer *t);
 bool timer_tick(Timer *t);
