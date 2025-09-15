@@ -3,6 +3,7 @@
 
 #include "common.h"
 #include "asset_manager.h"
+#include "physics.h"
 
 typedef struct {
     Entity entity;
@@ -37,7 +38,5 @@ void asteroid_update(Asteroid* asteroid, float delta_time);
 void asteroid_render(Asteroid* asteroid, SDL_Renderer* renderer);
 
 void spawn_asteroid(GameState* state);
-bool check_collision(const Rectangle* a, const Rectangle* b);
-Rectangle entity_to_rectangle(const Entity* entity);
 
 #endif // GAME_H

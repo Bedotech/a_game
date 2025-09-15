@@ -63,11 +63,9 @@ void game_state_update(GameState* state, float delta_time) {
         spawn_asteroid(state);
     }
     
-    Rectangle starship_rect = entity_to_rectangle(&state->starship.entity);
     for (int i = 0; i < MAX_ASTEROIDS; i++) {
         if (state->asteroids[i].entity.active) {
-            Rectangle asteroid_rect = entity_to_rectangle(&state->asteroids[i].entity);
-            if (check_collision(&starship_rect, &asteroid_rect)) {
+            if (physics_entities_collide(&state->starship.entity, &state->asteroids[i].entity)) {
                 state->game_over = true;
                 SDL_Log("Game Over! Collision detected!");
                 break;
@@ -133,22 +131,9 @@ void starship_init(Starship* starship) {
 
 void starship_update(Starship* starship, float delta_time) {
     if (!starship || !starship->entity.active) return;
-    
-    starship->entity.position.x += starship->entity.velocity.x * delta_time;
-    starship->entity.position.y += starship->entity.velocity.y * delta_time;
-    
-    if (starship->entity.position.x < 0) {
-        starship->entity.position.x = 0;
-    }
-    if (starship->entity.position.x > SCREEN_WIDTH - starship->entity.width) {
-        starship->entity.position.x = SCREEN_WIDTH - starship->entity.width;
-    }
-    if (starship->entity.position.y < 0) {
-        starship->entity.position.y = 0;
-    }
-    if (starship->entity.position.y > SCREEN_HEIGHT - starship->entity.height) {
-        starship->entity.position.y = SCREEN_HEIGHT - starship->entity.height;
-    }
+
+    physics_update_entity(&starship->entity, delta_time);
+    physics_clamp_entity_position(&starship->entity, SCREEN_WIDTH, SCREEN_HEIGHT);
 }
 
 void starship_render(Starship* starship, SDL_Renderer* renderer) {
@@ -182,11 +167,10 @@ void asteroid_init(Asteroid* asteroid, float x, float y, float size) {
 
 void asteroid_update(Asteroid* asteroid, float delta_time) {
     if (!asteroid || !asteroid->entity.active) return;
-    
-    asteroid->entity.position.x += asteroid->entity.velocity.x * delta_time;
-    asteroid->entity.position.y += asteroid->entity.velocity.y * delta_time;
+
+    physics_update_entity(&asteroid->entity, delta_time);
     asteroid->entity.rotation += 50.0f * delta_time;
-    
+
     if (asteroid->entity.position.y < 0 || asteroid->entity.position.y > SCREEN_HEIGHT) {
         asteroid->entity.velocity.y = -asteroid->entity.velocity.y;
     }
@@ -221,22 +205,3 @@ void spawn_asteroid(GameState* state) {
     }
 }
 
-bool check_collision(const Rectangle* a, const Rectangle* b) {
-    if (!a || !b) return false;
-    
-    return (a->x < b->x + b->w &&
-            a->x + a->w > b->x &&
-            a->y < b->y + b->h &&
-            a->y + a->h > b->y);
-}
-
-Rectangle entity_to_rectangle(const Entity* entity) {
-    Rectangle rect = {0};
-    if (entity) {
-        rect.x = entity->position.x;
-        rect.y = entity->position.y;
-        rect.w = entity->width;
-        rect.h = entity->height;
-    }
-    return rect;
-}
