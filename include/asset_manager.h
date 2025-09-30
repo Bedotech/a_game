@@ -23,6 +23,7 @@ typedef struct {
 AssetManager* asset_manager_create(SDL_Renderer* renderer);
 void asset_manager_destroy(AssetManager* manager);
 SDL_Texture* asset_manager_load_texture(AssetManager* manager, const char* filename);
+SDL_Texture* asset_manager_load_texture_from_memory(AssetManager* manager, const char* name, const unsigned char* data, size_t size);
 SDL_Texture* asset_manager_get_texture(AssetManager* manager, const char* filename);
 void asset_manager_get_texture_size(AssetManager* manager, const char* filename, int* width, int* height);
 

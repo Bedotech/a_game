@@ -1,4 +1,5 @@
 #include "game.h"
+#include "embedded_assets.h"
 
 static float random_float(float min, float max) {
     return min + ((float)rand() / RAND_MAX) * (max - min);
@@ -16,7 +17,13 @@ GameState* game_state_create(SDL_Renderer* renderer) {
         free(state);
         return NULL;
     }
-    
+
+    // Load embedded textures
+    asset_manager_load_texture_from_memory(state->asset_manager, "starship.png",
+                                          embedded_starship_png_data, embedded_starship_png_size);
+    asset_manager_load_texture_from_memory(state->asset_manager, "asteroid.png",
+                                          embedded_asteroid_png_data, embedded_asteroid_png_size);
+
     starship_init(&state->starship);
     state->asteroid_count = 0;
     state->game_over = false;
@@ -85,12 +92,12 @@ void game_state_render(GameState* state, SDL_Renderer* renderer) {
     
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
     SDL_RenderClear(renderer);
-    
-    starship_render(&state->starship, renderer);
-    
+
+    starship_render(&state->starship, renderer, state->asset_manager);
+
     for (int i = 0; i < MAX_ASTEROIDS; i++) {
         if (state->asteroids[i].entity.active) {
-            asteroid_render(&state->asteroids[i], renderer);
+            asteroid_render(&state->asteroids[i], renderer, state->asset_manager);
         }
     }
     
@@ -147,19 +154,29 @@ void starship_update(Starship* starship, float delta_time) {
     physics_clamp_entity_position(&starship->entity, SCREEN_WIDTH, SCREEN_HEIGHT);
 }
 
-void starship_render(Starship* starship, SDL_Renderer* renderer) {
+void starship_render(Starship* starship, SDL_Renderer* renderer, AssetManager* asset_manager) {
     if (!starship || !starship->entity.active) return;
-    
-    SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
-    
-    SDL_FRect rect = {
-        starship->entity.position.x,
-        starship->entity.position.y,
-        starship->entity.width,
-        starship->entity.height
-    };
-    
-    SDL_RenderFillRect(renderer, &rect);
+
+    SDL_Texture* texture = asset_manager_get_texture(asset_manager, "starship.png");
+    if (texture) {
+        SDL_FRect rect = {
+            starship->entity.position.x,
+            starship->entity.position.y,
+            starship->entity.width,
+            starship->entity.height
+        };
+        SDL_RenderTexture(renderer, texture, NULL, &rect);
+    } else {
+        // Fallback to colored rectangle
+        SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
+        SDL_FRect rect = {
+            starship->entity.position.x,
+            starship->entity.position.y,
+            starship->entity.width,
+            starship->entity.height
+        };
+        SDL_RenderFillRect(renderer, &rect);
+    }
 }
 
 void asteroid_init(Asteroid* asteroid, float x, float y, float size, float speed_multiplier) {
@@ -187,19 +204,30 @@ void asteroid_update(Asteroid* asteroid, float delta_time) {
     }
 }
 
-void asteroid_render(Asteroid* asteroid, SDL_Renderer* renderer) {
+void asteroid_render(Asteroid* asteroid, SDL_Renderer* renderer, AssetManager* asset_manager) {
     if (!asteroid || !asteroid->entity.active) return;
-    
-    SDL_SetRenderDrawColor(renderer, 139, 69, 19, 255);
-    
-    SDL_FRect rect = {
-        asteroid->entity.position.x,
-        asteroid->entity.position.y,
-        asteroid->entity.width,
-        asteroid->entity.height
-    };
-    
-    SDL_RenderFillRect(renderer, &rect);
+
+    SDL_Texture* texture = asset_manager_get_texture(asset_manager, "asteroid.png");
+    if (texture) {
+        SDL_FRect rect = {
+            asteroid->entity.position.x,
+            asteroid->entity.position.y,
+            asteroid->entity.width,
+            asteroid->entity.height
+        };
+        SDL_RenderTextureRotated(renderer, texture, NULL, &rect,
+                                asteroid->entity.rotation, NULL, SDL_FLIP_NONE);
+    } else {
+        // Fallback to colored rectangle
+        SDL_SetRenderDrawColor(renderer, 139, 69, 19, 255);
+        SDL_FRect rect = {
+            asteroid->entity.position.x,
+            asteroid->entity.position.y,
+            asteroid->entity.width,
+            asteroid->entity.height
+        };
+        SDL_RenderFillRect(renderer, &rect);
+    }
 }
 
 void spawn_asteroid(GameState* state) {

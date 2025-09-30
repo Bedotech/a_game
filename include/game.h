@@ -32,11 +32,11 @@ void game_state_handle_input(GameState* state, const bool* keyboard_state);
 
 void starship_init(Starship* starship);
 void starship_update(Starship* starship, float delta_time);
-void starship_render(Starship* starship, SDL_Renderer* renderer);
+void starship_render(Starship* starship, SDL_Renderer* renderer, AssetManager* asset_manager);
 
 void asteroid_init(Asteroid* asteroid, float x, float y, float size, float speed_multiplier);
 void asteroid_update(Asteroid* asteroid, float delta_time);
-void asteroid_render(Asteroid* asteroid, SDL_Renderer* renderer);
+void asteroid_render(Asteroid* asteroid, SDL_Renderer* renderer, AssetManager* asset_manager);
 
 void spawn_asteroid(GameState* state);
 
