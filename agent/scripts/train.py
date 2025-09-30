@@ -35,6 +35,7 @@ def train(
     save_dir: str = "agent/models",
     log_dir: str = "agent/logs",
     render_mode: str = None,
+    enable_eval: bool = False,
 ):
     """
     Train the PPO agent on the Starship environment.
@@ -74,9 +75,6 @@ def train(
     # Use single environment for training (can be parallelized later)
     env = make_env()
 
-    # Create evaluation environment
-    eval_env = make_env()
-
     # Setup callbacks
     checkpoint_callback = CheckpointCallback(
         save_freq=10_000,
@@ -86,15 +84,31 @@ def train(
         save_vecnormalize=False,
     )
 
-    eval_callback = EvalCallback(
-        eval_env,
-        best_model_save_path=save_dir,
-        log_path=log_dir,
-        eval_freq=5_000,
-        deterministic=True,
-        render=False,
-        n_eval_episodes=5,
-    )
+    callbacks = [checkpoint_callback]
+
+    # Optionally add evaluation callback (disabled by default to avoid port conflicts)
+    if enable_eval:
+        print("⚠️  Warning: Evaluation callback enabled. This may cause port conflicts.")
+        print("   Make sure no other game instance is using port 5556.")
+
+        # Create evaluation environment on different port
+        def make_eval_env():
+            env = StarshipEnv(render_mode=None, port=5556)
+            env = Monitor(env)
+            return env
+
+        eval_env = make_eval_env()
+
+        eval_callback = EvalCallback(
+            eval_env,
+            best_model_save_path=save_dir,
+            log_path=log_dir,
+            eval_freq=5_000,
+            deterministic=True,
+            render=False,
+            n_eval_episodes=5,
+        )
+        callbacks.append(eval_callback)
 
     # Create PPO model
     model = PPO(
@@ -121,7 +135,7 @@ def train(
         # Train the model
         model.learn(
             total_timesteps=total_timesteps,
-            callback=[checkpoint_callback, eval_callback],
+            callback=callbacks,
             progress_bar=True,
         )
 
@@ -137,7 +151,8 @@ def train(
 
     finally:
         env.close()
-        eval_env.close()
+        if enable_eval and 'eval_env' in locals():
+            eval_env.close()
 
 
 if __name__ == "__main__":
@@ -149,6 +164,7 @@ if __name__ == "__main__":
     parser.add_argument("--render", action="store_true", help="Show game window during training")
     parser.add_argument("--save-dir", type=str, default="models", help="Model save directory")
     parser.add_argument("--log-dir", type=str, default="logs", help="Log directory")
+    parser.add_argument("--enable-eval", action="store_true", help="Enable evaluation callback (may cause freezes)")
 
     args = parser.parse_args()
 
@@ -158,4 +174,5 @@ if __name__ == "__main__":
         save_dir=args.save_dir,
         log_dir=args.log_dir,
         render_mode="human" if args.render else None,
+        enable_eval=args.enable_eval,
     )

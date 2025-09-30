@@ -227,6 +227,16 @@ self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(2,), dtype=np.float32)
 
 ## Troubleshooting
 
+### Training Freezes at 5000 Steps
+
+**Problem:** Training stops and freezes around step 5000.
+
+**Cause:** Evaluation callback was trying to use the same port.
+
+**Solution:** Evaluation is now disabled by default. Training should work smoothly!
+
+If you still experience freezes, see `KNOWN_ISSUES.md` for detailed solutions.
+
 ### Connection Issues
 
 If the Python environment can't connect to the game:
