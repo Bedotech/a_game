@@ -87,3 +87,46 @@ endif()
 if(NOT SDL3_IMAGE_FOUND)
     message(STATUS "SDL3_image not found - using BMP fallback only")
 endif()
+
+# Embed PNG assets into the executable
+file(GLOB ASSET_FILES "${CMAKE_CURRENT_SOURCE_DIR}/assets/*.png")
+foreach(ASSET_FILE ${ASSET_FILES})
+    get_filename_component(ASSET_NAME ${ASSET_FILE} NAME)
+    string(REPLACE "." "_" ASSET_VAR_NAME ${ASSET_NAME})
+
+    # Generate C file with embedded asset data
+    file(READ ${ASSET_FILE} ASSET_HEX HEX)
+    string(LENGTH ${ASSET_HEX} ASSET_HEX_LEN)
+    math(EXPR ASSET_SIZE "${ASSET_HEX_LEN} / 2")
+
+    # Convert hex string to C array
+    set(ASSET_C_FILE "${CMAKE_CURRENT_BINARY_DIR}/embedded_${ASSET_VAR_NAME}.c")
+    file(WRITE ${ASSET_C_FILE} "// Auto-generated embedded asset: ${ASSET_NAME}\n")
+    file(APPEND ${ASSET_C_FILE} "#include <stddef.h>\n")
+    file(APPEND ${ASSET_C_FILE} "const unsigned char embedded_${ASSET_VAR_NAME}_data[] = {\n")
+
+    string(REGEX MATCHALL ".." ASSET_BYTES ${ASSET_HEX})
+    set(BYTE_COUNT 0)
+    foreach(BYTE ${ASSET_BYTES})
+        if(BYTE_COUNT EQUAL 0)
+            file(APPEND ${ASSET_C_FILE} "    ")
+        endif()
+        file(APPEND ${ASSET_C_FILE} "0x${BYTE}, ")
+        math(EXPR BYTE_COUNT "${BYTE_COUNT} + 1")
+        if(BYTE_COUNT EQUAL 12)
+            file(APPEND ${ASSET_C_FILE} "\n")
+            set(BYTE_COUNT 0)
+        endif()
+    endforeach()
+
+    file(APPEND ${ASSET_C_FILE} "\n};\n")
+    file(APPEND ${ASSET_C_FILE} "const size_t embedded_${ASSET_VAR_NAME}_size = ${ASSET_SIZE};\n")
+
+    # Add generated file to sources
+    target_sources(${PROJECT_NAME} PRIVATE ${ASSET_C_FILE})
+
+    message(STATUS "Embedding asset: ${ASSET_NAME} (${ASSET_SIZE} bytes)")
+endforeach()
+
+# Copy assets to build directory for runtime loading fallback
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/assets DESTINATION ${CMAKE_BINARY_DIR})
