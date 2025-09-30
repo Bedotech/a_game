@@ -119,16 +119,20 @@ class StarshipEnv(gym.Env):
         """Reset the environment."""
         super().reset(seed=seed)
 
-        # Close existing connection if any
-        if self.socket:
-            try:
-                self.socket.close()
-            except:
-                pass
-            self.socket = None
+        # Check if game process is still running
+        game_needs_restart = (self.game_process is None or
+                             self.game_process.poll() is not None)
 
-        # Start game process if not running
-        if self.game_process is None or self.game_process.poll() is not None:
+        # If game crashed or first run, start it
+        if game_needs_restart:
+            # Clean up old socket if any
+            if self.socket:
+                try:
+                    self.socket.close()
+                except:
+                    pass
+                self.socket = None
+
             # Find the game executable
             import os
             game_path = os.path.join(os.path.dirname(__file__), '..', '..', 'build', 'starship_game')
@@ -152,10 +156,15 @@ class StarshipEnv(gym.Env):
             import time
             time.sleep(0.5)
 
-        # Connect to game
-        self._connect_to_game()
+            # Connect to game
+            self._connect_to_game()
+        else:
+            # Game is running, just send reset command
+            # No need to reconnect, reuse existing socket
+            if not self.socket:
+                self._connect_to_game()
 
-        # Send reset command
+        # Send reset command to restart the game state
         self._send_action(-1)  # -1 = reset
 
         # Receive initial state

@@ -111,19 +111,21 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         }
 
         if (action == -1) {
-            // Reset request
+            // Reset request - recreate game state
+            SDL_Log("Resetting game state");
             game_state_destroy(game_state);
             game_state = game_state_create(renderer);
             game_state_set_rl_mode(game_state, true);
+            last_time = SDL_GetTicks();  // Reset timing
         } else {
             // Apply action
             game_state_apply_rl_action(game_state, action);
+
+            // Update game
+            game_state_update(game_state, delta_time);
         }
 
-        // Update game
-        game_state_update(game_state, delta_time);
-
-        // Calculate reward
+        // Calculate reward (even for reset, to get initial state reward)
         float reward = game_state_calculate_reward(game_state);
 
         // Build and send state to agent

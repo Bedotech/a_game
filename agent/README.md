@@ -40,10 +40,15 @@ Verify the game bridge works correctly:
 
 ```bash
 cd agent
+
+# Basic connection test
 uv run python scripts/test_connection.py
+
+# Test automatic reset across episodes
+uv run python scripts/test_reset.py
 ```
 
-This will start the game, connect to it, and run a few test steps.
+This will start the game, connect to it, and verify automatic resets work properly.
 
 ### 3. Build the Game with RL Support
 
