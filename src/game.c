@@ -61,7 +61,11 @@ void game_state_update(GameState* state, float delta_time) {
         }
     }
     
-    if (rand() % 120 == 0) {
+    // Increase spawn rate based on score
+    int spawn_chance = 120 - (state->score / 5);
+    if (spawn_chance < 30) spawn_chance = 30; // Minimum spawn interval
+
+    if (rand() % spawn_chance == 0) {
         spawn_asteroid(state);
     }
     
@@ -158,13 +162,13 @@ void starship_render(Starship* starship, SDL_Renderer* renderer) {
     SDL_RenderFillRect(renderer, &rect);
 }
 
-void asteroid_init(Asteroid* asteroid, float x, float y, float size) {
+void asteroid_init(Asteroid* asteroid, float x, float y, float size, float speed_multiplier) {
     if (!asteroid) return;
-    
+
     asteroid->entity.position.x = x;
     asteroid->entity.position.y = y;
-    asteroid->entity.velocity.x = -random_float(ASTEROID_MIN_SPEED, ASTEROID_MAX_SPEED);
-    asteroid->entity.velocity.y = random_float(-50.0f, 50.0f);
+    asteroid->entity.velocity.x = -random_float(ASTEROID_MIN_SPEED, ASTEROID_MAX_SPEED) * speed_multiplier;
+    asteroid->entity.velocity.y = random_float(-50.0f, 50.0f) * speed_multiplier;
     asteroid->entity.rotation = 0.0f;
     asteroid->entity.width = size;
     asteroid->entity.height = size;
@@ -200,12 +204,16 @@ void asteroid_render(Asteroid* asteroid, SDL_Renderer* renderer) {
 
 void spawn_asteroid(GameState* state) {
     if (!state || state->asteroid_count >= MAX_ASTEROIDS) return;
-    
+
+    // Calculate speed multiplier based on score (increases by 10% every 10 points)
+    float speed_multiplier = 1.0f + (state->score / 10) * 0.1f;
+    if (speed_multiplier > 2.5f) speed_multiplier = 2.5f; // Cap at 2.5x speed
+
     for (int i = 0; i < MAX_ASTEROIDS; i++) {
         if (!state->asteroids[i].entity.active) {
             float size = random_float(ASTEROID_MIN_SIZE, ASTEROID_MAX_SIZE);
             float y = random_float(0, SCREEN_HEIGHT - size);
-            asteroid_init(&state->asteroids[i], SCREEN_WIDTH, y, size);
+            asteroid_init(&state->asteroids[i], SCREEN_WIDTH, y, size, speed_multiplier);
             state->asteroid_count++;
             break;
         }
