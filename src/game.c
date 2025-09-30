@@ -142,7 +142,7 @@ void starship_init(Starship* starship) {
     starship->entity.velocity.x = 0.0f;
     starship->entity.velocity.y = 0.0f;
     starship->entity.rotation = 0.0f;
-    // Maintain starship.png aspect ratio: 669x287 ≈ 2.33:1
+    // Maintain starship.png aspect ratio: 672x289 ≈ 2.32:1
     starship->entity.width = 70.0f;
     starship->entity.height = 30.0f;
     starship->entity.active = true;
