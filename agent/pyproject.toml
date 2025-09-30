@@ -1,0 +1,25 @@
+[project]
+name = "starship-rl-agent"
+version = "0.1.0"
+description = "Reinforcement learning agent for Starship asteroid avoidance game"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "gymnasium>=0.29.0",
+    "stable-baselines3[extra]>=2.2.0",
+    "torch==2.2.2",
+    "tensorboard>=2.15.0",
+    "matplotlib>=3.8.0",
+    "numpy>=1.24.0",
+    "tqdm>=4.66.0",
+]
+
+[project.scripts]
+train = "scripts.train:main"
+evaluate = "scripts.evaluate:main"
+
+[tool.uv]
+dev-dependencies = [
+    "ipython>=8.18.0",
+    "pytest>=7.4.0",
+]

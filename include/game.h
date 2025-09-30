@@ -30,6 +30,12 @@ typedef struct {
     bool game_over;
     float delta_time;
     int score;
+
+    // RL mode tracking
+    bool rl_mode;
+    float cumulative_reward;
+    float last_reward;
+    int prev_score;
 } GameState;
 
 GameState* game_state_create(SDL_Renderer* renderer);
@@ -52,5 +58,10 @@ void projectile_init(Projectile* projectile, float x, float y);
 void projectile_update(Projectile* projectile, float delta_time);
 void projectile_render(Projectile* projectile, SDL_Renderer* renderer);
 void spawn_projectile(GameState* state);
+
+// RL mode functions
+void game_state_apply_rl_action(GameState* state, int action);
+float game_state_calculate_reward(GameState* state);
+void game_state_set_rl_mode(GameState* state, bool enabled);
 
 #endif // GAME_H

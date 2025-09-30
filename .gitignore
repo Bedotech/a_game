@@ -15,6 +15,14 @@
 
 # Python compile output.
 *.pyc
+__pycache__/
+
+# RL Agent (Python/uv)
+/agent/.venv/
+/agent/uv.lock
+/agent/models/*.zip
+/agent/logs/
+/agent/.ipynb_checkpoints/
 
 # See Utilities/Sphinx/tutorial_archive.cmake
 /Help/_generated

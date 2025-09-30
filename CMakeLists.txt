@@ -35,12 +35,20 @@ include_directories(include)
 # Collect all source files
 file(GLOB_RECURSE SOURCES "src/*.c")
 
+# Add game bridge for RL mode
+list(APPEND SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/agent/utils/game_bridge.c")
+
 # Create executable
 add_executable(${PROJECT_NAME} ${SOURCES})
 
 # Link with static SDL3
 target_link_libraries(${PROJECT_NAME} PRIVATE SDL3::SDL3-static)
 message(STATUS "Linked with SDL3::SDL3-static")
+
+# Link socket libraries for game bridge (RL mode)
+if(WIN32)
+    target_link_libraries(${PROJECT_NAME} PRIVATE ws2_32)
+endif()
 
 # Handle SDL3_image - force static
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/vendored/SDL_image/CMakeLists.txt")

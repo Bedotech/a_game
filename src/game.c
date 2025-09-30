@@ -33,6 +33,12 @@ GameState* game_state_create(SDL_Renderer* renderer) {
     state->delta_time = 0.0f;
     state->score = 0;
 
+    // RL mode initialization
+    state->rl_mode = false;
+    state->cumulative_reward = 0.0f;
+    state->last_reward = 0.0f;
+    state->prev_score = 0;
+
     for (int i = 0; i < MAX_ASTEROIDS; i++) {
         state->asteroids[i].entity.active = false;
     }
@@ -402,5 +408,93 @@ void spawn_projectile(GameState* state) {
             break;
         }
     }
+}
+
+// RL mode functions
+
+void game_state_set_rl_mode(GameState* state, bool enabled) {
+    if (state) {
+        state->rl_mode = enabled;
+    }
+}
+
+void game_state_apply_rl_action(GameState* state, int action) {
+    if (!state) return;
+
+    // Reset velocity
+    state->starship.entity.velocity.x = 0;
+    state->starship.entity.velocity.y = 0;
+
+    // Apply action
+    // 0 = UP, 1 = DOWN, 2 = LEFT, 3 = RIGHT, 4 = NOOP
+    switch (action) {
+        case 0: // UP
+            state->starship.entity.velocity.y = -STARSHIP_SPEED;
+            break;
+        case 1: // DOWN
+            state->starship.entity.velocity.y = STARSHIP_SPEED;
+            break;
+        case 2: // LEFT
+            state->starship.entity.velocity.x = -STARSHIP_SPEED;
+            break;
+        case 3: // RIGHT
+            state->starship.entity.velocity.x = STARSHIP_SPEED;
+            break;
+        case 4: // NOOP
+        default:
+            // No movement
+            break;
+    }
+}
+
+float game_state_calculate_reward(GameState* state) {
+    if (!state) return 0.0f;
+
+    float reward = 0.0f;
+
+    // Reward for staying alive
+    if (!state->game_over) {
+        reward += 1.0f;
+    }
+
+    // Large penalty for collision (game over)
+    if (state->game_over) {
+        reward -= 100.0f;
+    }
+
+    // Reward for score increase (avoiding asteroids or destroying them)
+    int score_diff = state->score - state->prev_score;
+    if (score_diff > 0) {
+        reward += score_diff * 10.0f;
+    }
+    state->prev_score = state->score;
+
+    // Small penalty for being close to screen edges
+    float edge_margin = 50.0f;
+    if (state->starship.entity.position.x < edge_margin ||
+        state->starship.entity.position.x > SCREEN_WIDTH - edge_margin ||
+        state->starship.entity.position.y < edge_margin ||
+        state->starship.entity.position.y > SCREEN_HEIGHT - edge_margin) {
+        reward -= 0.1f;
+    }
+
+    // Small penalty for proximity to asteroids
+    float danger_radius = 80.0f;
+    for (int i = 0; i < MAX_ASTEROIDS; i++) {
+        if (state->asteroids[i].entity.active) {
+            float dx = state->asteroids[i].entity.position.x - state->starship.entity.position.x;
+            float dy = state->asteroids[i].entity.position.y - state->starship.entity.position.y;
+            float distance = sqrtf(dx * dx + dy * dy);
+
+            if (distance < danger_radius) {
+                reward -= (danger_radius - distance) / danger_radius * 0.5f;
+            }
+        }
+    }
+
+    state->last_reward = reward;
+    state->cumulative_reward += reward;
+
+    return reward;
 }
 
