@@ -18,10 +18,14 @@
 #define FPS 60
 
 #define MAX_ASTEROIDS 50
+#define MAX_PROJECTILES 10
 #define STARSHIP_SPEED 300.0f
 #define ASTEROID_MIN_SPEED 50.0f
 #define ASTEROID_MAX_SPEED 200.0f
 #define ASTEROID_SIZE 40.0f
+#define PROJECTILE_SPEED 500.0f
+#define PROJECTILE_WIDTH 8.0f
+#define PROJECTILE_HEIGHT 3.0f
 
 // Common types
 typedef struct {

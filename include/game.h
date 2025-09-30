@@ -15,9 +15,17 @@ typedef struct {
 } Asteroid;
 
 typedef struct {
+    Entity entity;
+} Projectile;
+
+typedef struct {
     Starship starship;
     Asteroid asteroids[MAX_ASTEROIDS];
+    Projectile projectiles[MAX_PROJECTILES];
     int asteroid_count;
+    int projectile_count;
+    int available_shots;
+    int last_shot_score;
     AssetManager* asset_manager;
     bool game_over;
     float delta_time;
@@ -39,5 +47,10 @@ void asteroid_update(Asteroid* asteroid, float delta_time);
 void asteroid_render(Asteroid* asteroid, SDL_Renderer* renderer, AssetManager* asset_manager);
 
 void spawn_asteroid(GameState* state);
+
+void projectile_init(Projectile* projectile, float x, float y);
+void projectile_update(Projectile* projectile, float delta_time);
+void projectile_render(Projectile* projectile, SDL_Renderer* renderer);
+void spawn_projectile(GameState* state);
 
 #endif // GAME_H

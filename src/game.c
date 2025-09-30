@@ -26,12 +26,19 @@ GameState* game_state_create(SDL_Renderer* renderer) {
 
     starship_init(&state->starship);
     state->asteroid_count = 0;
+    state->projectile_count = 0;
+    state->available_shots = 3;
+    state->last_shot_score = 0;
     state->game_over = false;
     state->delta_time = 0.0f;
     state->score = 0;
-    
+
     for (int i = 0; i < MAX_ASTEROIDS; i++) {
         state->asteroids[i].entity.active = false;
+    }
+
+    for (int i = 0; i < MAX_PROJECTILES; i++) {
+        state->projectiles[i].entity.active = false;
     }
     
     srand((unsigned int)time(NULL));
@@ -55,7 +62,21 @@ void game_state_update(GameState* state, float delta_time) {
     state->delta_time = delta_time;
     
     starship_update(&state->starship, delta_time);
-    
+
+    // Update projectiles
+    for (int i = 0; i < MAX_PROJECTILES; i++) {
+        if (state->projectiles[i].entity.active) {
+            projectile_update(&state->projectiles[i], delta_time);
+
+            // Remove projectiles that go off screen
+            if (state->projectiles[i].entity.position.x > SCREEN_WIDTH) {
+                state->projectiles[i].entity.active = false;
+                state->projectile_count--;
+            }
+        }
+    }
+
+    // Update asteroids
     for (int i = 0; i < MAX_ASTEROIDS; i++) {
         if (state->asteroids[i].entity.active) {
             asteroid_update(&state->asteroids[i], delta_time);
@@ -66,6 +87,12 @@ void game_state_update(GameState* state, float delta_time) {
                 state->score++;
             }
         }
+    }
+
+    // Award extra shot every 50 points
+    if (state->score > 0 && state->score / 50 > state->last_shot_score / 50) {
+        state->available_shots++;
+        state->last_shot_score = state->score;
     }
     
     // Increase spawn rate based on score
@@ -124,6 +151,25 @@ void game_state_update(GameState* state, float delta_time) {
         }
     }
 
+    // Check projectile-asteroid collisions
+    for (int i = 0; i < MAX_PROJECTILES; i++) {
+        if (!state->projectiles[i].entity.active) continue;
+
+        for (int j = 0; j < MAX_ASTEROIDS; j++) {
+            if (!state->asteroids[j].entity.active) continue;
+
+            if (physics_entities_collide(&state->projectiles[i].entity, &state->asteroids[j].entity)) {
+                // Destroy both projectile and asteroid
+                state->projectiles[i].entity.active = false;
+                state->projectile_count--;
+                state->asteroids[j].entity.active = false;
+                state->asteroid_count--;
+                state->score += 10; // Bonus points for shooting
+                break;
+            }
+        }
+    }
+
     // Check starship collisions
     for (int i = 0; i < MAX_ASTEROIDS; i++) {
         if (state->asteroids[i].entity.active) {
@@ -149,16 +195,28 @@ void game_state_render(GameState* state, SDL_Renderer* renderer) {
             asteroid_render(&state->asteroids[i], renderer, state->asset_manager);
         }
     }
-    
+
+    for (int i = 0; i < MAX_PROJECTILES; i++) {
+        if (state->projectiles[i].entity.active) {
+            projectile_render(&state->projectiles[i], renderer);
+        }
+    }
+
     if (state->game_over) {
         SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
         SDL_RenderDebugText(renderer, SCREEN_WIDTH / 2 - 60, SCREEN_HEIGHT / 2, "GAME OVER!");
     }
 
+    // Show score in lower right
     char score_text[32];
     snprintf(score_text, sizeof(score_text), "Score: %d", state->score);
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
     SDL_RenderDebugText(renderer, SCREEN_WIDTH - 120, SCREEN_HEIGHT - 30, score_text);
+
+    // Show available shots in lower left
+    char shots_text[32];
+    snprintf(shots_text, sizeof(shots_text), "Shots: %d", state->available_shots);
+    SDL_RenderDebugText(renderer, 10, SCREEN_HEIGHT - 30, shots_text);
 
     SDL_RenderPresent(renderer);
 }
@@ -292,6 +350,55 @@ void spawn_asteroid(GameState* state) {
             float y = random_float(0, SCREEN_HEIGHT - ASTEROID_SIZE);
             asteroid_init(&state->asteroids[i], SCREEN_WIDTH, y, ASTEROID_SIZE, speed_multiplier);
             state->asteroid_count++;
+            break;
+        }
+    }
+}
+
+void projectile_init(Projectile* projectile, float x, float y) {
+    if (!projectile) return;
+
+    projectile->entity.position.x = x;
+    projectile->entity.position.y = y;
+    projectile->entity.velocity.x = PROJECTILE_SPEED;
+    projectile->entity.velocity.y = 0.0f;
+    projectile->entity.rotation = 0.0f;
+    projectile->entity.width = PROJECTILE_WIDTH;
+    projectile->entity.height = PROJECTILE_HEIGHT;
+    projectile->entity.active = true;
+}
+
+void projectile_update(Projectile* projectile, float delta_time) {
+    if (!projectile || !projectile->entity.active) return;
+
+    physics_update_entity(&projectile->entity, delta_time);
+}
+
+void projectile_render(Projectile* projectile, SDL_Renderer* renderer) {
+    if (!projectile || !projectile->entity.active) return;
+
+    SDL_SetRenderDrawColor(renderer, 255, 255, 0, 255); // Yellow projectile
+    SDL_FRect rect = {
+        projectile->entity.position.x,
+        projectile->entity.position.y,
+        projectile->entity.width,
+        projectile->entity.height
+    };
+    SDL_RenderFillRect(renderer, &rect);
+}
+
+void spawn_projectile(GameState* state) {
+    if (!state || state->projectile_count >= MAX_PROJECTILES) return;
+    if (state->available_shots <= 0) return;
+
+    for (int i = 0; i < MAX_PROJECTILES; i++) {
+        if (!state->projectiles[i].entity.active) {
+            // Spawn from the right side of the starship, centered vertically
+            float x = state->starship.entity.position.x + state->starship.entity.width;
+            float y = state->starship.entity.position.y + (state->starship.entity.height / 2.0f) - (PROJECTILE_HEIGHT / 2.0f);
+            projectile_init(&state->projectiles[i], x, y);
+            state->projectile_count++;
+            state->available_shots--;
             break;
         }
     }
