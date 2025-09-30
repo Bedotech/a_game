@@ -75,7 +75,56 @@ void game_state_update(GameState* state, float delta_time) {
     if (rand() % spawn_chance == 0) {
         spawn_asteroid(state);
     }
-    
+
+    // Check asteroid-to-asteroid collisions
+    for (int i = 0; i < MAX_ASTEROIDS; i++) {
+        if (!state->asteroids[i].entity.active) continue;
+
+        for (int j = i + 1; j < MAX_ASTEROIDS; j++) {
+            if (!state->asteroids[j].entity.active) continue;
+
+            if (physics_entities_collide(&state->asteroids[i].entity, &state->asteroids[j].entity)) {
+                // Calculate collision normal (direction from i to j)
+                float dx = state->asteroids[j].entity.position.x - state->asteroids[i].entity.position.x;
+                float dy = state->asteroids[j].entity.position.y - state->asteroids[i].entity.position.y;
+                float distance = sqrtf(dx * dx + dy * dy);
+
+                if (distance > 0) {
+                    // Normalize
+                    dx /= distance;
+                    dy /= distance;
+
+                    // Relative velocity
+                    float dvx = state->asteroids[j].entity.velocity.x - state->asteroids[i].entity.velocity.x;
+                    float dvy = state->asteroids[j].entity.velocity.y - state->asteroids[i].entity.velocity.y;
+
+                    // Velocity along collision normal
+                    float dvn = dvx * dx + dvy * dy;
+
+                    // Only bounce if moving toward each other
+                    if (dvn < 0) {
+                        // Elastic collision - swap velocity components along normal
+                        state->asteroids[i].entity.velocity.x += dvn * dx;
+                        state->asteroids[i].entity.velocity.y += dvn * dy;
+                        state->asteroids[j].entity.velocity.x -= dvn * dx;
+                        state->asteroids[j].entity.velocity.y -= dvn * dy;
+
+                        // Separate asteroids to prevent sticking
+                        float overlap = (state->asteroids[i].size / 2.0f + state->asteroids[j].size / 2.0f) - distance;
+                        if (overlap > 0) {
+                            float separation = overlap / 2.0f + 0.5f;
+                            state->asteroids[i].entity.position.x -= dx * separation;
+                            state->asteroids[i].entity.position.y -= dy * separation;
+                            state->asteroids[j].entity.position.x += dx * separation;
+                            state->asteroids[j].entity.position.y += dy * separation;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Check starship collisions
     for (int i = 0; i < MAX_ASTEROIDS; i++) {
         if (state->asteroids[i].entity.active) {
             if (physics_entities_collide(&state->starship.entity, &state->asteroids[i].entity)) {
