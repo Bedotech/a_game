@@ -29,6 +29,7 @@
 
 // RL mode
 #define RL_PORT_DEFAULT 5555
+#define RL_SPEED_MULTIPLIER_DEFAULT 2.0f
 
 // Common types
 typedef struct {

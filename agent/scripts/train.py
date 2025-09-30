@@ -36,6 +36,7 @@ def train(
     log_dir: str = "agent/logs",
     render_mode: str = None,
     enable_eval: bool = False,
+    speed_multiplier: float = 2.0,
 ):
     """
     Train the PPO agent on the Starship environment.
@@ -53,6 +54,7 @@ def train(
         save_dir: Directory to save models
         log_dir: Directory for tensorboard logs
         render_mode: 'human' to render, None for headless
+        speed_multiplier: Game speed multiplier for faster training
     """
     # Create directories
     os.makedirs(save_dir, exist_ok=True)
@@ -68,7 +70,7 @@ def train(
 
     # Create environment
     def make_env():
-        env = StarshipEnv(render_mode=render_mode)
+        env = StarshipEnv(render_mode=render_mode, speed_multiplier=speed_multiplier)
         env = Monitor(env)
         return env
 
@@ -93,7 +95,7 @@ def train(
 
         # Create evaluation environment on different port
         def make_eval_env():
-            env = StarshipEnv(render_mode=None, port=5556)
+            env = StarshipEnv(render_mode=None, port=5556, speed_multiplier=speed_multiplier)
             env = Monitor(env)
             return env
 
@@ -165,6 +167,7 @@ if __name__ == "__main__":
     parser.add_argument("--save-dir", type=str, default="models", help="Model save directory")
     parser.add_argument("--log-dir", type=str, default="logs", help="Log directory")
     parser.add_argument("--enable-eval", action="store_true", help="Enable evaluation callback (may cause freezes)")
+    parser.add_argument("--speed", type=float, default=2.0, help="Game speed multiplier for faster training")
 
     args = parser.parse_args()
 
@@ -175,4 +178,5 @@ if __name__ == "__main__":
         log_dir=args.log_dir,
         render_mode="human" if args.render else None,
         enable_eval=args.enable_eval,
+        speed_multiplier=args.speed,
     )

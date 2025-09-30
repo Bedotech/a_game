@@ -18,6 +18,7 @@ static Uint64 last_time = 0;
 static bool rl_mode = false;
 static bool headless_mode = false;
 static int rl_port = RL_PORT_DEFAULT;
+static float speed_multiplier = 1.0f;
 
 SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
 {
@@ -32,6 +33,9 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
         } else if (strncmp(argv[i], "--port=", 7) == 0) {
             rl_port = atoi(argv[i] + 7);
             SDL_Log("Using port: %d", rl_port);
+        } else if (strncmp(argv[i], "--speed=", 8) == 0) {
+            speed_multiplier = atof(argv[i] + 8);
+            SDL_Log("Speed multiplier: %.2f", speed_multiplier);
         }
     }
 
@@ -47,6 +51,9 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char *argv[])
         SDL_Log("Failed to create game state");
         return SDL_APP_FAILURE;
     }
+
+    // Set speed multiplier
+    game_state_set_speed_multiplier(game_state, speed_multiplier);
 
     // Enable RL mode in game state
     if (rl_mode) {
@@ -116,6 +123,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
             game_state_destroy(game_state);
             game_state = game_state_create(renderer);
             game_state_set_rl_mode(game_state, true);
+            game_state_set_speed_multiplier(game_state, speed_multiplier);
             last_time = SDL_GetTicks();  // Reset timing
         } else {
             // Apply action

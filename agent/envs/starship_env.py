@@ -20,11 +20,12 @@ class StarshipEnv(gym.Env):
 
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 60}
 
-    def __init__(self, render_mode: Optional[str] = None, port: int = 5555):
+    def __init__(self, render_mode: Optional[str] = None, port: int = 5555, speed_multiplier: float = 2.0):
         super().__init__()
 
         self.render_mode = render_mode
         self.port = port
+        self.speed_multiplier = speed_multiplier
         self.game_process = None
         self.socket = None
 
@@ -148,7 +149,7 @@ class StarshipEnv(gym.Env):
         if not os.path.exists(game_path):
             raise FileNotFoundError(f"Game executable not found at {game_path}. Did you build the game?")
 
-        cmd = [game_path, "--rl-mode", f"--port={self.port}"]
+        cmd = [game_path, "--rl-mode", f"--port={self.port}", f"--speed={self.speed_multiplier}"]
 
         if self.render_mode == "human":
             self.game_process = subprocess.Popen(cmd)
