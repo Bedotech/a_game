@@ -21,8 +21,7 @@
 #define STARSHIP_SPEED 300.0f
 #define ASTEROID_MIN_SPEED 50.0f
 #define ASTEROID_MAX_SPEED 200.0f
-#define ASTEROID_MIN_SIZE 20.0f
-#define ASTEROID_MAX_SIZE 60.0f
+#define ASTEROID_SIZE 40.0f
 
 // Common types
 typedef struct {

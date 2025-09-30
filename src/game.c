@@ -211,9 +211,8 @@ void spawn_asteroid(GameState* state) {
 
     for (int i = 0; i < MAX_ASTEROIDS; i++) {
         if (!state->asteroids[i].entity.active) {
-            float size = random_float(ASTEROID_MIN_SIZE, ASTEROID_MAX_SIZE);
-            float y = random_float(0, SCREEN_HEIGHT - size);
-            asteroid_init(&state->asteroids[i], SCREEN_WIDTH, y, size, speed_multiplier);
+            float y = random_float(0, SCREEN_HEIGHT - ASTEROID_SIZE);
+            asteroid_init(&state->asteroids[i], SCREEN_WIDTH, y, ASTEROID_SIZE, speed_multiplier);
             state->asteroid_count++;
             break;
         }
