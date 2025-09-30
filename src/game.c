@@ -21,6 +21,7 @@ GameState* game_state_create(SDL_Renderer* renderer) {
     state->asteroid_count = 0;
     state->game_over = false;
     state->delta_time = 0.0f;
+    state->score = 0;
     
     for (int i = 0; i < MAX_ASTEROIDS; i++) {
         state->asteroids[i].entity.active = false;
@@ -51,10 +52,11 @@ void game_state_update(GameState* state, float delta_time) {
     for (int i = 0; i < MAX_ASTEROIDS; i++) {
         if (state->asteroids[i].entity.active) {
             asteroid_update(&state->asteroids[i], delta_time);
-            
+
             if (state->asteroids[i].entity.position.x < -state->asteroids[i].size) {
                 state->asteroids[i].entity.active = false;
                 state->asteroid_count--;
+                state->score++;
             }
         }
     }
@@ -92,7 +94,12 @@ void game_state_render(GameState* state, SDL_Renderer* renderer) {
         SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
         SDL_RenderDebugText(renderer, SCREEN_WIDTH / 2 - 60, SCREEN_HEIGHT / 2, "GAME OVER!");
     }
-    
+
+    char score_text[32];
+    snprintf(score_text, sizeof(score_text), "Score: %d", state->score);
+    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+    SDL_RenderDebugText(renderer, SCREEN_WIDTH - 120, SCREEN_HEIGHT - 30, score_text);
+
     SDL_RenderPresent(renderer);
 }
 

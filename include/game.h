@@ -21,6 +21,7 @@ typedef struct {
     AssetManager* asset_manager;
     bool game_over;
     float delta_time;
+    int score;
 } GameState;
 
 GameState* game_state_create(SDL_Renderer* renderer);
