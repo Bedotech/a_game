@@ -116,55 +116,54 @@ class StarshipEnv(gym.Env):
         return obs
 
     def reset(self, seed: Optional[int] = None, options: Optional[dict] = None):
-        """Reset the environment."""
+        """Reset the environment by restarting the game process."""
         super().reset(seed=seed)
 
-        # Check if game process is still running
-        game_needs_restart = (self.game_process is None or
-                             self.game_process.poll() is not None)
+        # Always kill existing game process and socket for fresh start
+        if self.socket:
+            try:
+                self.socket.close()
+            except:
+                pass
+            self.socket = None
 
-        # If game crashed or first run, start it
-        if game_needs_restart:
-            # Clean up old socket if any
-            if self.socket:
+        if self.game_process:
+            try:
+                self.game_process.terminate()
+                self.game_process.wait(timeout=2)
+            except:
                 try:
-                    self.socket.close()
+                    self.game_process.kill()
+                    self.game_process.wait()
                 except:
                     pass
-                self.socket = None
+            self.game_process = None
 
-            # Find the game executable
-            import os
-            game_path = os.path.join(os.path.dirname(__file__), '..', '..', 'build', 'starship_game')
-            game_path = os.path.abspath(game_path)
+        # Find the game executable
+        import os
+        import time
+        game_path = os.path.join(os.path.dirname(__file__), '..', '..', 'build', 'starship_game')
+        game_path = os.path.abspath(game_path)
 
-            if not os.path.exists(game_path):
-                raise FileNotFoundError(f"Game executable not found at {game_path}. Did you build the game?")
+        if not os.path.exists(game_path):
+            raise FileNotFoundError(f"Game executable not found at {game_path}. Did you build the game?")
 
-            cmd = [game_path, "--rl-mode", f"--port={self.port}"]
+        cmd = [game_path, "--rl-mode", f"--port={self.port}"]
 
-            if self.render_mode == "human":
-                print(f"🎮 Starting game in render mode: {' '.join(cmd)}")
-                self.game_process = subprocess.Popen(cmd)
-            else:
-                # Headless mode
-                cmd.append("--headless")
-                print(f"🎮 Starting game in headless mode: {' '.join(cmd)}")
-                self.game_process = subprocess.Popen(cmd)
-
-            # Give game a moment to start
-            import time
-            time.sleep(0.5)
-
-            # Connect to game
-            self._connect_to_game()
+        if self.render_mode == "human":
+            self.game_process = subprocess.Popen(cmd)
         else:
-            # Game is running, just send reset command
-            # No need to reconnect, reuse existing socket
-            if not self.socket:
-                self._connect_to_game()
+            # Headless mode
+            cmd.append("--headless")
+            self.game_process = subprocess.Popen(cmd)
 
-        # Send reset command to restart the game state
+        # Give game time to start and bind to port
+        time.sleep(0.5)
+
+        # Connect to game
+        self._connect_to_game()
+
+        # Send reset command to get initial state
         self._send_action(-1)  # -1 = reset
 
         # Receive initial state
