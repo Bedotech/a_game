@@ -6,7 +6,7 @@
 
 
 typedef struct {
-  uint tick_every;
+  unsigned int tick_every;
   clock_t start;
   clock_t last_read;
   bool started;
@@ -15,7 +15,7 @@ typedef struct {
 
 // Initialize the timer
 Timer timer_init(void);
-uint timer_elapsed_seconds(Timer *t);
+unsigned int timer_elapsed_seconds(Timer *t);
 void timer_start(Timer *t);
 void timer_stop(Timer *t);
 bool timer_tick(Timer *t);

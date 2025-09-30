@@ -9,6 +9,6 @@ Timer timer_init() {
   return timer;
 }
 
-uint timer_elapsed_seconds(Timer *t) {
-  return (uint)(((clock()) - t->start) / CLOCKS_PER_SEC);
+unsigned int timer_elapsed_seconds(Timer *t) {
+  return (unsigned int)(((clock()) - t->start) / CLOCKS_PER_SEC);
 }
