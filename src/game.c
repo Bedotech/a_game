@@ -483,7 +483,7 @@ float game_state_calculate_reward(GameState* state) {
 
     // Large penalty for collision (game over)
     if (state->game_over) {
-        reward -= 100.0f;
+        reward -= 5000.0f;
     }
 
     // Reward for score increase (avoiding asteroids or destroying them)
