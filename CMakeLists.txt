@@ -22,6 +22,13 @@ set(SDL_SHARED OFF CACHE BOOL "Build SDL shared library" FORCE)
 set(SDL_STATIC ON CACHE BOOL "Build SDL static library" FORCE)
 set(SDL_HIDAPI OFF CACHE BOOL "Disable HIDAPI for static build" FORCE)
 
+# Disable unused SDL features to reduce memory footprint
+set(SDL_AUDIO OFF CACHE BOOL "Disable audio support" FORCE)
+set(SDL_HAPTIC OFF CACHE BOOL "Disable haptic/force feedback" FORCE)
+set(SDL_SENSOR OFF CACHE BOOL "Disable sensor support" FORCE)
+set(SDL_JOYSTICK OFF CACHE BOOL "Disable joystick support" FORCE)
+set(SDL_CAMERA OFF CACHE BOOL "Disable camera support" FORCE)
+
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/vendored/SDL/CMakeLists.txt")
     add_subdirectory(vendored/SDL EXCLUDE_FROM_ALL)
     message(STATUS "Using vendored SDL3 (static)")
