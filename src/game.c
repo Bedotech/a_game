@@ -493,28 +493,10 @@ float game_state_calculate_reward(GameState* state) {
     }
     state->prev_score = state->score;
 
-    // Small penalty for being close to screen edges
-    float edge_margin = 50.0f;
-    if (state->starship.entity.position.x < edge_margin ||
-        state->starship.entity.position.x > SCREEN_WIDTH - edge_margin ||
-        state->starship.entity.position.y < edge_margin ||
-        state->starship.entity.position.y > SCREEN_HEIGHT - edge_margin) {
-        reward -= 0.1f;
-    }
-
-    // Small penalty for proximity to asteroids
-    float danger_radius = 80.0f;
-    for (int i = 0; i < MAX_ASTEROIDS; i++) {
-        if (state->asteroids[i].entity.active) {
-            float dx = state->asteroids[i].entity.position.x - state->starship.entity.position.x;
-            float dy = state->asteroids[i].entity.position.y - state->starship.entity.position.y;
-            float distance = sqrtf(dx * dx + dy * dy);
-
-            if (distance < danger_radius) {
-                reward -= (danger_radius - distance) / danger_radius * 0.5f;
-            }
-        }
-    }
+    // Note: Removed proximity penalties for edges and asteroids
+    // - Edge penalty discouraged using screen edges for dodging
+    // - Asteroid proximity penalty conflicted with survival goal
+    // - Simple reward structure works better: survive (+1) and avoid (+10)
 
     state->last_reward = reward;
     state->cumulative_reward += reward;
