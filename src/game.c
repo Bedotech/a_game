@@ -106,11 +106,11 @@ void game_state_update(GameState* state, float delta_time) {
     }
     
     // Time-based asteroid spawning
-    // Base spawn rate: 0.5 asteroids/second, increases with score
-    float base_spawn_rate = 0.5f;  // asteroids per second
-    float score_bonus = state->score / 100.0f;  // increase by 0.01 per point
+    // Base spawn rate: 1.5 asteroids/second, increases with score
+    float base_spawn_rate = 1.5f;  // asteroids per second (increased from 0.5)
+    float score_bonus = state->score / 50.0f;  // increase by 0.02 per point (faster scaling)
     float spawn_rate = base_spawn_rate + score_bonus;
-    if (spawn_rate > 2.0f) spawn_rate = 2.0f;  // Cap at 2 asteroids/second
+    if (spawn_rate > 4.0f) spawn_rate = 4.0f;  // Cap at 4 asteroids/second (increased from 2)
 
     // Accumulate time and spawn when threshold is reached
     state->spawn_accumulator += delta_time * spawn_rate;
