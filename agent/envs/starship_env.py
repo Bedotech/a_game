@@ -51,7 +51,7 @@ class StarshipEnv(gym.Env):
         # [starship_x, starship_y, starship_vx, starship_vy,
         #  asteroid1_x, asteroid1_y, asteroid1_vx, asteroid1_vy, asteroid1_radius,
         #  ... up to N asteroids]
-        self.max_asteroids = 10
+        self.max_asteroids = 50  # Increased from 10 to 50 for better spatial awareness
         obs_size = 4 + self.max_asteroids * 5  # starship(4) + asteroids(5 each)
         self.observation_space = spaces.Box(
             low=-np.inf, high=np.inf, shape=(obs_size,), dtype=np.float32
