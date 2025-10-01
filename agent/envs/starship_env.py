@@ -12,7 +12,10 @@ import subprocess
 import socket
 import struct
 import json
+import logging
 from typing import Optional, Tuple
+
+logger = logging.getLogger(__name__)
 
 
 class StarshipEnv(gym.Env):
@@ -20,12 +23,20 @@ class StarshipEnv(gym.Env):
 
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 60}
 
-    def __init__(self, render_mode: Optional[str] = None, port: int = 5555, speed_multiplier: float = 2.0):
+    def __init__(
+        self,
+        render_mode: Optional[str] = None,
+        port: int = 5555,
+        speed_multiplier: float = 2.0,
+        verbose: bool = False,
+        max_steps: int = 1_000_000,
+    ):
         super().__init__()
 
         self.render_mode = render_mode
         self.port = port
         self.speed_multiplier = speed_multiplier
+        self.verbose = verbose
         self.game_process = None
         self.socket = None
 
@@ -47,27 +58,37 @@ class StarshipEnv(gym.Env):
         )
 
         self.current_step = 0
-        self.max_steps = 10000
+        self.max_steps = (
+            max_steps  # Maximum steps per episode (prevents infinite episodes)
+        )
 
     def _connect_to_game(self):
         """Establish connection to the game process."""
         if self.socket is None:
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
+            # Disable Nagle's algorithm for low latency
+            self.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+
             # Retry connection with backoff
             max_retries = 10
             for attempt in range(max_retries):
                 try:
                     self.socket.connect(("localhost", self.port))
-                    print(f"✅ Connected to game on port {self.port}")
+                    logger.info(f"Connected to game on port {self.port}")
                     return
                 except ConnectionRefusedError:
                     if attempt < max_retries - 1:
-                        print(f"⏳ Waiting for game to start (attempt {attempt + 1}/{max_retries})...")
+                        logger.debug(
+                            f"Waiting for game to start (attempt {attempt + 1}/{max_retries})..."
+                        )
                         import time
+
                         time.sleep(1)
                     else:
-                        raise ConnectionError(f"Could not connect to game on port {self.port} after {max_retries} attempts")
+                        raise ConnectionError(
+                            f"Could not connect to game on port {self.port} after {max_retries} attempts"
+                        )
 
     def _send_action(self, action: int):
         """Send action to the game."""
@@ -90,6 +111,11 @@ class StarshipEnv(gym.Env):
         reward = state.get("reward", 0.0)
         terminated = state.get("game_over", False)
         truncated = self.current_step >= self.max_steps
+
+        # Log episode end reasons
+        if terminated or truncated:
+            reason = "collision" if terminated else f"max_steps ({self.max_steps})"
+            logger.debug(f"Episode ended at step {self.current_step}: {reason}")
 
         return obs, reward, terminated, truncated
 
@@ -117,10 +143,36 @@ class StarshipEnv(gym.Env):
         return obs
 
     def reset(self, seed: Optional[int] = None, options: Optional[dict] = None):
-        """Reset the environment by restarting the game process."""
+        """Reset the environment."""
         super().reset(seed=seed)
 
-        # Always kill existing game process and socket for fresh start
+        # If game is already running, just send reset command (fast path)
+        if self.game_process and self.socket:
+            try:
+                # Check if process is still alive
+                if self.game_process.poll() is not None:
+                    # Process died, need to restart
+                    logger.warning("Game process died, restarting...")
+                    self.game_process = None
+                    self.socket = None
+                else:
+                    # Send reset command to get initial state
+                    self._send_action(-1)  # -1 = reset
+
+                    # Receive initial state
+                    obs, _, _, _ = self._receive_state()
+
+                    self.current_step = 0
+                    logger.debug(f"Environment reset completed (fast path)")
+                    return obs, {}
+            except (ConnectionError, BrokenPipeError, OSError) as e:
+                # Connection lost, need to restart
+                logger.warning(f"Connection lost ({e}), restarting game...")
+                self.game_process = None
+                self.socket = None
+
+        # Otherwise, start game process (slow path - first time only)
+        # Kill existing game process and socket if any
         if self.socket:
             try:
                 self.socket.close()
@@ -143,13 +195,23 @@ class StarshipEnv(gym.Env):
         # Find the game executable
         import os
         import time
-        game_path = os.path.join(os.path.dirname(__file__), '..', '..', 'build', 'starship_game')
+
+        game_path = os.path.join(
+            os.path.dirname(__file__), "..", "..", "build", "starship_game"
+        )
         game_path = os.path.abspath(game_path)
 
         if not os.path.exists(game_path):
-            raise FileNotFoundError(f"Game executable not found at {game_path}. Did you build the game?")
+            raise FileNotFoundError(
+                f"Game executable not found at {game_path}. Did you build the game?"
+            )
 
-        cmd = [game_path, "--rl-mode", f"--port={self.port}", f"--speed={self.speed_multiplier}"]
+        cmd = [
+            game_path,
+            "--rl-mode",
+            f"--port={self.port}",
+            f"--speed={self.speed_multiplier}",
+        ]
 
         if self.render_mode == "human":
             self.game_process = subprocess.Popen(cmd)
@@ -183,6 +245,12 @@ class StarshipEnv(gym.Env):
         # Receive new state
         obs, reward, terminated, truncated = self._receive_state()
 
+        # Debug logging for step results
+        if terminated or truncated:
+            logger.debug(
+                f"Step {self.current_step}: terminated={terminated}, truncated={truncated}, reward={reward:.2f}"
+            )
+
         return obs, reward, terminated, truncated, {}
 
     def render(self):
@@ -204,4 +272,3 @@ class StarshipEnv(gym.Env):
             self.game_process.terminate()
             self.game_process.wait()
             self.game_process = None
-

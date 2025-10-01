@@ -17,6 +17,7 @@
     typedef int socklen_t;
 #else
     #include <sys/socket.h>
+    #include <netinet/tcp.h>
     #include <arpa/inet.h>
     #include <unistd.h>
     #define SOCKET int
@@ -93,6 +94,10 @@ bool bridge_accept_connection(void) {
         fprintf(stderr, "Accept failed\n");
         return false;
     }
+
+    // Disable Nagle's algorithm for low latency
+    int flag = 1;
+    setsockopt(bridge.client_socket, IPPROTO_TCP, TCP_NODELAY, (void*)&flag, sizeof(int));
 
     bridge.connected = true;
     printf("RL agent connected!\n");
