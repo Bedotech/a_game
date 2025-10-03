@@ -27,6 +27,10 @@
 #define PROJECTILE_WIDTH 8.0f
 #define PROJECTILE_HEIGHT 3.0f
 
+// RL mode
+#define RL_PORT_DEFAULT 5555
+#define RL_SPEED_MULTIPLIER_DEFAULT 2.0f
+
 // Common types
 typedef struct {
     float x, y;

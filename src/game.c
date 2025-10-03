@@ -33,6 +33,16 @@ GameState* game_state_create(SDL_Renderer* renderer) {
     state->delta_time = 0.0f;
     state->score = 0;
 
+    // RL mode initialization
+    state->rl_mode = false;
+    state->cumulative_reward = 0.0f;
+    state->last_reward = 0.0f;
+    state->prev_score = 0;
+    state->speed_multiplier = 1.0f;
+
+    // Time-based spawning
+    state->spawn_accumulator = 0.0f;
+
     for (int i = 0; i < MAX_ASTEROIDS; i++) {
         state->asteroids[i].entity.active = false;
     }
@@ -95,12 +105,19 @@ void game_state_update(GameState* state, float delta_time) {
         state->last_shot_score = state->score;
     }
     
-    // Increase spawn rate based on score
-    int spawn_chance = 120 - (state->score / 5);
-    if (spawn_chance < 30) spawn_chance = 30; // Minimum spawn interval
+    // Time-based asteroid spawning
+    // Base spawn rate: 1.5 asteroids/second, increases with score
+    float base_spawn_rate = 1.5f;  // asteroids per second (increased from 0.5)
+    float score_bonus = state->score / 50.0f;  // increase by 0.02 per point (faster scaling)
+    float spawn_rate = base_spawn_rate + score_bonus;
+    if (spawn_rate > 4.0f) spawn_rate = 4.0f;  // Cap at 4 asteroids/second (increased from 2)
 
-    if (rand() % spawn_chance == 0) {
+    // Accumulate time and spawn when threshold is reached
+    state->spawn_accumulator += delta_time * spawn_rate;
+
+    while (state->spawn_accumulator >= 1.0f) {
         spawn_asteroid(state);
+        state->spawn_accumulator -= 1.0f;
     }
 
     // Check asteroid-to-asteroid collisions
@@ -223,21 +240,23 @@ void game_state_render(GameState* state, SDL_Renderer* renderer) {
 
 void game_state_handle_input(GameState* state, const bool* keyboard_state) {
     if (!state || !keyboard_state) return;
-    
+
     state->starship.entity.velocity.x = 0;
     state->starship.entity.velocity.y = 0;
-    
+
+    float speed = STARSHIP_SPEED * state->speed_multiplier;
+
     if (keyboard_state[SDL_SCANCODE_W] || keyboard_state[SDL_SCANCODE_UP]) {
-        state->starship.entity.velocity.y = -STARSHIP_SPEED;
+        state->starship.entity.velocity.y = -speed;
     }
     if (keyboard_state[SDL_SCANCODE_S] || keyboard_state[SDL_SCANCODE_DOWN]) {
-        state->starship.entity.velocity.y = STARSHIP_SPEED;
+        state->starship.entity.velocity.y = speed;
     }
     if (keyboard_state[SDL_SCANCODE_A] || keyboard_state[SDL_SCANCODE_LEFT]) {
-        state->starship.entity.velocity.x = -STARSHIP_SPEED;
+        state->starship.entity.velocity.x = -speed;
     }
     if (keyboard_state[SDL_SCANCODE_D] || keyboard_state[SDL_SCANCODE_RIGHT]) {
-        state->starship.entity.velocity.x = STARSHIP_SPEED;
+        state->starship.entity.velocity.x = speed;
     }
 }
 
@@ -287,13 +306,13 @@ void starship_render(Starship* starship, SDL_Renderer* renderer, AssetManager* a
     }
 }
 
-void asteroid_init(Asteroid* asteroid, float x, float y, float size, float speed_multiplier) {
+void asteroid_init(Asteroid* asteroid, float x, float y, float size, float base_speed_multiplier) {
     if (!asteroid) return;
 
     asteroid->entity.position.x = x;
     asteroid->entity.position.y = y;
-    asteroid->entity.velocity.x = -random_float(ASTEROID_MIN_SPEED, ASTEROID_MAX_SPEED) * speed_multiplier;
-    asteroid->entity.velocity.y = random_float(-50.0f, 50.0f) * speed_multiplier;
+    asteroid->entity.velocity.x = -random_float(ASTEROID_MIN_SPEED, ASTEROID_MAX_SPEED) * base_speed_multiplier;
+    asteroid->entity.velocity.y = random_float(-50.0f, 50.0f) * base_speed_multiplier;
     asteroid->entity.rotation = 0.0f;
     asteroid->entity.width = size;
     asteroid->entity.height = size;
@@ -342,25 +361,28 @@ void spawn_asteroid(GameState* state) {
     if (!state || state->asteroid_count >= MAX_ASTEROIDS) return;
 
     // Calculate speed multiplier based on score (increases by 10% every 10 points)
-    float speed_multiplier = 1.0f + (state->score / 10) * 0.1f;
-    if (speed_multiplier > 2.5f) speed_multiplier = 2.5f; // Cap at 2.5x speed
+    float base_speed_multiplier = 1.0f + (state->score / 10) * 0.1f;
+    if (base_speed_multiplier > 2.5f) base_speed_multiplier = 2.5f; // Cap at 2.5x speed
+
+    // Apply global speed multiplier for training mode
+    float total_speed_multiplier = base_speed_multiplier * state->speed_multiplier;
 
     for (int i = 0; i < MAX_ASTEROIDS; i++) {
         if (!state->asteroids[i].entity.active) {
             float y = random_float(0, SCREEN_HEIGHT - ASTEROID_SIZE);
-            asteroid_init(&state->asteroids[i], SCREEN_WIDTH, y, ASTEROID_SIZE, speed_multiplier);
+            asteroid_init(&state->asteroids[i], SCREEN_WIDTH, y, ASTEROID_SIZE, total_speed_multiplier);
             state->asteroid_count++;
             break;
         }
     }
 }
 
-void projectile_init(Projectile* projectile, float x, float y) {
+void projectile_init(Projectile* projectile, float x, float y, float speed_multiplier) {
     if (!projectile) return;
 
     projectile->entity.position.x = x;
     projectile->entity.position.y = y;
-    projectile->entity.velocity.x = PROJECTILE_SPEED;
+    projectile->entity.velocity.x = PROJECTILE_SPEED * speed_multiplier;
     projectile->entity.velocity.y = 0.0f;
     projectile->entity.rotation = 0.0f;
     projectile->entity.width = PROJECTILE_WIDTH;
@@ -396,11 +418,89 @@ void spawn_projectile(GameState* state) {
             // Spawn from the right side of the starship, centered vertically
             float x = state->starship.entity.position.x + state->starship.entity.width;
             float y = state->starship.entity.position.y + (state->starship.entity.height / 2.0f) - (PROJECTILE_HEIGHT / 2.0f);
-            projectile_init(&state->projectiles[i], x, y);
+            projectile_init(&state->projectiles[i], x, y, state->speed_multiplier);
             state->projectile_count++;
             state->available_shots--;
             break;
         }
     }
+}
+
+// RL mode functions
+
+void game_state_set_rl_mode(GameState* state, bool enabled) {
+    if (state) {
+        state->rl_mode = enabled;
+    }
+}
+
+void game_state_set_speed_multiplier(GameState* state, float multiplier) {
+    if (state) {
+        state->speed_multiplier = multiplier;
+    }
+}
+
+void game_state_apply_rl_action(GameState* state, int action) {
+    if (!state) return;
+
+    // Reset velocity
+    state->starship.entity.velocity.x = 0;
+    state->starship.entity.velocity.y = 0;
+
+    float speed = STARSHIP_SPEED * state->speed_multiplier;
+
+    // Apply action
+    // 0 = UP, 1 = DOWN, 2 = LEFT, 3 = RIGHT, 4 = NOOP
+    switch (action) {
+        case 0: // UP
+            state->starship.entity.velocity.y = -speed;
+            break;
+        case 1: // DOWN
+            state->starship.entity.velocity.y = speed;
+            break;
+        case 2: // LEFT
+            state->starship.entity.velocity.x = -speed;
+            break;
+        case 3: // RIGHT
+            state->starship.entity.velocity.x = speed;
+            break;
+        case 4: // NOOP
+        default:
+            // No movement
+            break;
+    }
+}
+
+float game_state_calculate_reward(GameState* state) {
+    if (!state) return 0.0f;
+
+    float reward = 0.0f;
+
+    // Reward for staying alive
+    if (!state->game_over) {
+        reward += 1.0f;
+    }
+
+    // Large penalty for collision (game over)
+    if (state->game_over) {
+        reward -= 5000.0f;
+    }
+
+    // Reward for score increase (avoiding asteroids or destroying them)
+    int score_diff = state->score - state->prev_score;
+    if (score_diff > 0) {
+        reward += score_diff * 10.0f;
+    }
+    state->prev_score = state->score;
+
+    // Note: Removed proximity penalties for edges and asteroids
+    // - Edge penalty discouraged using screen edges for dodging
+    // - Asteroid proximity penalty conflicted with survival goal
+    // - Simple reward structure works better: survive (+1) and avoid (+10)
+
+    state->last_reward = reward;
+    state->cumulative_reward += reward;
+
+    return reward;
 }
 
